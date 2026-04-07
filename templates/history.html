@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 style="color:var(--text-dim);">Historical Audit Logs</h2>
+<p>Total data stored in <code>medical_logs.db</code></p>
+
+<table style="width:100%; border-collapse: collapse; margin-top: 20px;">
+    <thead>
+        <tr style="border-bottom: 2px solid #333; color: var(--accent-blue);">
+            <th style="padding: 15px; text-align: left;">Timestamp</th>
+            <th>Source IP</th>
+            <th>Packet Size</th>
+            <th>AI Status</th>
+            <th>Score</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr style="border-bottom: 1px solid #222; color: var(--text-dim);">
+            <td style="padding: 12px;">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td>{{ log.ip_source }}</td>
+            <td>{{ log.frame_len }}</td>
+            <td class="{{ 'text-danger' if log.is_anomaly else 'text-success' }}">
+                {{ '⚠️ ANOMALY' if log.is_anomaly else 'NORMAL' }}
+            </td>
+            <td>{{ log.anomaly_score }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

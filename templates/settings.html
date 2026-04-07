@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h2 style="color: var(--accent-blue); font-weight: 300;">System Settings & Management</h2>
+    <p style="color: var(--text-dim);">Manage the database and monitor system health.</p>
+
+    <hr style="border: 0; border-top: 1px solid #222; margin: 30px 0;">
+
+    <div style="background: var(--panel-bg); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+        <h3 style="margin-top: 0;">Database Overview</h3>
+        <p>Total Captured Records: <strong style="color: var(--accent-blue);">{{ log_count }}</strong></p>
+        
+        <div style="margin-top: 20px; display: flex; gap: 15px;">
+            <a href="/api/export" class="btn">Download Full Report (CSV)</a>
+            <button onclick="clearDatabase()" class="btn btn-danger">Purge All Logs</button>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; background: var(--panel-bg); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+        <h3 style="margin-top: 0;">Model Information</h3>
+        <p style="color: var(--text-dim);">Algorithm: <span style="color: white;">Isolation Forest (Scikit-Learn)</span></p>
+        <p style="color: var(--text-dim);">Status: <span style="color: #00ff88;">Active & Monitoring</span></p>
+    </div>
+</div>
+
+<script>
+function clearDatabase() {
+    if (confirm("Are you sure you want to delete all traffic logs? This cannot be undone.")) {
+        fetch('/api/clear', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === 'success') {
+                alert("Database cleared successfully.");
+                window.location.reload();
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

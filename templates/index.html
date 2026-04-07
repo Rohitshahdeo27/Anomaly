@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .dashboard-container { display: flex; gap: 20px; height: 80vh; }
+    .left-panel { flex: 7; background: var(--panel-bg); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; }
+    .right-panel { flex: 3; background: #0d1117; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,0.05); }
+    #report-list { overflow-y: auto; flex-grow: 1; }
+    .anomaly-card { 
+        background: rgba(255, 77, 77, 0.05); 
+        border-left: 4px solid var(--accent-red); 
+        padding: 15px; margin-bottom: 15px; border-radius: 8px;
+        animation: slideIn 0.4s ease;
+        position: relative;
+    }
+    .card-time { position: absolute; top: 15px; right: 15px; font-size: 10px; color: var(--text-dim); }
+    @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+
+<button id="unlock-audio" style="position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:100; padding:10px 20px; border-radius:20px; background:var(--accent-blue); border:none; color:white; font-weight:bold; cursor:pointer; box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);">INITIALIZE SECURE SYSTEM 🔊</button>
+
+<div class="dashboard-container">
+    <div class="left-panel">
+        <h3 style="color:var(--text-dim); margin-top:0;">Live Network Traffic Analysis</h3>
+        <div style="flex-grow:1;"><canvas id="trafficChart"></canvas></div>
+    </div>
+
+    <div class="right-panel">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; color:var(--accent-red);">
+            <span>🚨 SECURITY ALERTS</span>
+            <button class="excel-btn" onclick="exportToExcel()">EXPORT</button>
+        </div>
+        <div id="report-list"></div>
+    </div>
+</div>
+
+<script>
+    let audioCtx = null;
+    
+    document.getElementById('unlock-audio').addEventListener('click', function() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.style.display = 'none';
+    });
+
+    const ctx = document.getElementById('trafficChart').getContext('2d');
+    
+    // Create Gradient for the fill
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(0, 210, 255, 0.2)');
+    gradient.addColorStop(1, 'rgba(0, 210, 255, 0)');
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: { 
+            labels: [], 
+            datasets: [{ 
+                label: 'Packet Size', 
+                data: [], 
+                borderColor: '#00d2ff', 
+                borderWidth: 3,
+                tension: 0.45, // Slightly higher for smoother curves
+                cubicInterpolationMode: 'monotone', // Crucial for "smooth" feel
+                fill: true, 
+                backgroundColor: gradient,
+                pointRadius: 0, // Hidden for a cleaner line look
+                pointHoverRadius: 5
+            }] 
+        },
+        options: { 
+            maintainAspectRatio: false, 
+            responsive: true,
+            animation: {
+                duration: 600, // Smooth transition between points
+                easing: 'linear'
+            },
+            scales: { 
+                x: { 
+                    display: true, 
+                    grid: { color: 'rgba(255,255,255,0.03)' },
+                    ticks: { color: '#8b949e', font: { size: 10 }, maxRotation: 0 } 
+                }, 
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.03)' },
+                    ticks: { color: '#8b949e' }
+                } 
+            }, 
+            plugins: { 
+                legend: { display: false },
+                tooltip: { mode: 'index', intersect: false }
+            } 
+        }
+    });
+
+    const socket = io();
+    socket.on('update_dashboard', function(msg) {
+        const timeLabel = msg.time; 
+        
+        chart.data.labels.push(timeLabel);
+        chart.data.datasets[0].data.push(msg.vitals['mqtt.len']);
+        
+        if(chart.data.labels.length > 20) { 
+            chart.data.labels.shift(); 
+            chart.data.datasets[0].data.shift(); 
+        }
+        
+        // Update color smoothly
+        const color = msg.is_anomaly ? '#ff4d4d' : '#00d2ff';
+        chart.data.datasets[0].borderColor = color;
+        
+        chart.update(); // Removed 'none' to allow the 600ms animation
+
+        if(msg.is_anomaly) {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const list = document.getElementById('report-list');
+            const card = document.createElement('div');
+            card.className = 'anomaly-card';
+            card.innerHTML = `
+                <span class="card-time">${timeLabel}</span>
+                <h4>🚨 ANOMALY DETECTED</h4>
+                <p style="margin:5px 0; font-size:12px;">Source: ${msg.vitals['ip.src']}</p>
+                <p style="margin:0; font-size:11px; color:var(--accent-red)">Score: ${msg.score}</p>
+            `;
+            list.prepend(card);
+        }
+    });
+
+    function exportToExcel() {
+        window.location.href = '/api/export';
+    }
+</script>
+{% endblock %}
